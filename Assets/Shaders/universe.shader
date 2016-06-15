@@ -1,9 +1,17 @@
 ﻿Shader "drwho/universe" {
 Properties 
 	{
-		_Color("Color", Color) = (1,1,1,1)
-	}
+		_Iterations("Star Volume", Range(1,20)) = 4
+		_Brightness("Star Brightness", Range(0,1.0)) = .2
+		_Saturation("Star Saturation", Range(0,1.0)) = .2
+		_DistFading("DistFading", Range(0,1.0)) = .4
 
+		_VolSteps("Volumetric Steps", Range(2,20)) = 10
+		_VolSize("Volumetic Size", Range(0,1.0)) = .2
+		_Cloud("Cloud Volume", Range(0,1.0)) = .2
+	
+		
+	}
 	SubShader {
 	Pass 
 	{
@@ -11,6 +19,16 @@ Properties
 
 		uniform vec4  _Color;
 		uniform vec4  _Time;  
+
+		uniform int   _Iterations;
+		uniform int   _VolSteps;
+		uniform float _VolSize;
+		uniform float _Brightness;
+		uniform float _DistFading;
+		uniform float _Saturation;
+		uniform float _Cloud;
+
+
 
     #ifdef VERTEX 
 
@@ -27,24 +45,12 @@ Properties
 
 		varying vec2 uv; 
 
-		#define iterations 4
 		#define formuparam2 0.89
-		 
-		#define volsteps 10
-		#define stepsize 0.190
-		 
 		#define zoom 3.900
 		#define tile   0.450
 		#define speed2  0.010
-		 
-		#define brightness 0.2
-		#define darkmatter 0.400
-		#define distfading 0.560
-		#define saturation 0.400
-
-
 		#define transverseSpeed 1.1
-		#define cloud 0.2
+		#define cloud 0.1
 
  
 		float triangle(float x, float a)
@@ -147,22 +153,22 @@ Properties
 			//zoom
 			float zooom = (_Time.y-3311.)*speed;
 			from += forward* zooom;
-			float sampleShift = mod( zooom, stepsize );
+			float sampleShift = mod( zooom, _VolSize );
 			 
 			float zoffset = -sampleShift;
-			sampleShift /= stepsize; // make from 0 to 1
+			sampleShift /= _VolSize; // make from 0 to 1
 
 
 			
 			//volumetric rendering
 			float s=0.24;
-			float s3 = s + stepsize/2.0;
+			float s3 = s + _VolSize/2.0;
 			vec3 v=vec3(0.);
 			float t3 = 0.0;
 			
 			
 			vec3 backCol2 = vec3(0.);
-			for (int r=0; r<volsteps; r++) {
+			for (int r=0; r<_VolSteps; r++) {
 				vec3 p2=from+(s+zoffset)*dir;// + vec3(0.,0.,zoffset);
 				vec3 p3=(from+(s3+zoffset)*dir )* (1.9/zoom);// + vec3(0.,0.,zoffset);
 				
@@ -174,7 +180,8 @@ Properties
 				#endif
 				
 				float pa,a=pa=0.;
-				for (int i=0; i<iterations; i++) {
+				for (int i=0; i<_Iterations; i++) 
+				{
 					p2=abs(p2)/dot(p2,p2)-formuparam; // the magic formula
 					//p=abs(p)/max(dot(p,p),0.005)-formuparam; // another interesting way to reduce noise
 					float D = abs(length(p2)-pa); // absolute sum of average change
@@ -187,48 +194,34 @@ Properties
 				}
 				
 				
-				//float dm=max(0.,darkmatter-a*a*.001); //dark matter
-				a*=a*a; // add contrast
-				//if (r>3) fade*=1.-dm; // dark matter, don't render near
-				// brightens stuff up a bit
+				a*=a*a;
 				float s1 = s+zoffset;
-				// need closed form expression for this, now that we shift samples
-				float fade = pow(distfading,max(0.,float(r)-sampleShift));
-				
-				
-				//t3 += fade;
-				
-				v+=fade;
-			       		//backCol2 -= fade;
+				float fade = pow(_DistFading,max(0.,float(r)-sampleShift));
 
-				// fade out samples as they approach the camera
+				v+=fade;
 				if( r == 0 )
 					fade *= (1. - (sampleShift));
 				// fade in samples as they approach from the distance
-				if( r == volsteps-1 )
+				if( r == _VolSteps-1 )
 					fade *= sampleShift;
-				v+=vec3(s1,s1*s1,s1*s1*s1*s1)*a*brightness*fade; // coloring based on distance
+				v+=vec3(s1,s1*s1,s1*s1*s1*s1)*a*_Brightness*fade; // coloring based on distance
 				
 				backCol2 += mix(.4, 1., v2) * vec3(0.20 * t3 * t3 * t3, 0.4 * t3 * t3, t3 * 0.7) * fade;
 
 				
-				s+=stepsize;
-				s3 += stepsize;
+				s+=_VolSize;
+				s3 += _VolSize;
 				
 				
 				
 				}
 				       
-			v=mix(vec3(length(v)),v,saturation); //color adjust
-			 
-			
+			v=mix(vec3(length(v)),v,_Saturation); //color adjust
 			
 
 			vec4 forCol2 = vec4(v*.01,1.);
 			
-			#ifdef cloud
-				backCol2 *= cloud;
-			#endif
+				backCol2 *= _Cloud;
 			
 			gl_FragColor = forCol2 + vec4(backCol2, 1.0);
 
