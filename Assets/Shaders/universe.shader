@@ -2,6 +2,7 @@
 Properties 
 	{
 		_Iterations("Star Volume", Range(1,20)) = 4
+		_Zoom("Star Zoom", Range(1,10)) = 4
 		_Brightness("Star Brightness", Range(0,1.0)) = .2
 		_Saturation("Star Saturation", Range(0,1.0)) = .2
 		_DistFading("DistFading", Range(0,1.0)) = .4
@@ -9,9 +10,9 @@ Properties
 		_VolSteps("Volumetric Steps", Range(2,20)) = 10
 		_VolSize("Volumetic Size", Range(0,1.0)) = .2
 		_Cloud("Cloud Volume", Range(0,1.0)) = .2
-	
-		
+		_Speed("Speed", Range(0,10)) = 3
 	}
+
 	SubShader {
 	Pass 
 	{
@@ -27,6 +28,8 @@ Properties
 		uniform float _DistFading;
 		uniform float _Saturation;
 		uniform float _Cloud;
+		uniform float _Zoom;
+		uniform float _Speed;
 
 
 
@@ -45,20 +48,11 @@ Properties
 
 		varying vec2 uv; 
 
-		#define formuparam2 0.89
-		#define zoom 3.900
 		#define tile   0.450
-		#define speed2  0.010
 		#define transverseSpeed 1.1
 		#define cloud 0.1
 
- 
-		float triangle(float x, float a)
-		{
-			float output2 = 2.0*abs(  2.0*  ( (x/a) - floor( (x/a) + 0.5) ) ) - 1.0;
-			return output2;
-		}
-
+ 		
 		float field(in vec3 p) 
 		{
 			
@@ -67,7 +61,6 @@ Properties
 			float prev = 0.;
 			float tw = 0.;
 		
-
 			for (int i = 0; i < 6; ++i) 
 			{
 				float mag = dot(p, p);
@@ -80,25 +73,11 @@ Properties
 			return max(0., 5. * accum / tw - .7);
 		}
 
-
-
 		void main()
 		{
-		   
-		   	
-
-			
 			           
-	        float speed = speed2;
-	        speed = 0.005 * cos(_Time.y*0.02 + 3.1415926/4.0);
-	          
-	    	float formuparam = formuparam2;
-
-			
-		    
-
-
-			
+	        float speed = _Speed;
+	    	float formuparam = .89;
 				       
 			//mouse rotation
 			float a_xz = 0.9;
@@ -107,15 +86,11 @@ Properties
 			
 			
 			mat2 rot_xz = mat2(cos(a_xz),sin(a_xz),-sin(a_xz),cos(a_xz));
-			
 			mat2 rot_yz = mat2(cos(a_yz),sin(a_yz),-sin(a_yz),cos(a_yz));
-				
 			mat2 rot_xy = mat2(cos(a_xy),sin(a_xy),-sin(a_xy),cos(a_xy));
 			
 
-			float v2 =1.0;
-			
-			vec3 dir=vec3(uv*zoom,1.);
+			vec3 dir=vec3(uv *_Zoom, 1.);
 		 
 			vec3 from=vec3(0.0, 0.0,0.0);
 		 
@@ -128,7 +103,7 @@ Properties
 		               
 			
 			from.x += transverseSpeed*(1.0)*cos(0.01*_Time.y) + 0.001*_Time.y;
-				from.y += transverseSpeed*(1.0)*sin(0.01*_Time.y) +0.001*_Time.y;
+			from.y += transverseSpeed*(1.0)*sin(0.01*_Time.y) +0.001*_Time.y;
 			
 			from.z += 0.003*_Time.y;
 			
@@ -150,35 +125,34 @@ Properties
 			from.yz*= rot_yz;
 			 
 			
-			//zoom
 			float zooom = (_Time.y-3311.)*speed;
 			from += forward* zooom;
 			float sampleShift = mod( zooom, _VolSize );
 			 
 			float zoffset = -sampleShift;
-			sampleShift /= _VolSize; // make from 0 to 1
+			sampleShift /= _VolSize; 
 
 
-			
-			//volumetric rendering
+////////////////////////////////			
+
+
 			float s=0.24;
-			float s3 = s + _VolSize/2.0;
+     		float s3 = s + _VolSize/2.0;
 			vec3 v=vec3(0.);
 			float t3 = 0.0;
-			
-			
+
+//			
 			vec3 backCol2 = vec3(0.);
-			for (int r=0; r<_VolSteps; r++) {
-				vec3 p2=from+(s+zoffset)*dir;// + vec3(0.,0.,zoffset);
-				vec3 p3=(from+(s3+zoffset)*dir )* (1.9/zoom);// + vec3(0.,0.,zoffset);
+			for (int r=0; r<_VolSteps; r++) 
+			{
+				vec3 p2=from+(s+zoffset)*dir;
+				vec3 p3=(from+(s3+zoffset)*dir )* (1.9/_Zoom);
 				
-				p2 = abs(vec3(tile)-mod(p2,vec3(tile*2.))); // tiling fold
-				p3 = abs(vec3(tile)-mod(p3,vec3(tile*2.))); // tiling fold
+				p2 = abs(vec3(tile)-mod(p2,vec3(tile*2.))); 
+				p3 = abs(vec3(tile)-mod(p3,vec3(tile*2.))); 
 				
-				#ifdef cloud
 				t3 = field(p3);
-				#endif
-				
+
 				float pa,a=pa=0.;
 				for (int i=0; i<_Iterations; i++) 
 				{
@@ -206,7 +180,7 @@ Properties
 					fade *= sampleShift;
 				v+=vec3(s1,s1*s1,s1*s1*s1*s1)*a*_Brightness*fade; // coloring based on distance
 				
-				backCol2 += mix(.4, 1., v2) * vec3(0.20 * t3 * t3 * t3, 0.4 * t3 * t3, t3 * 0.7) * fade;
+				backCol2 += mix(.4, 1., 1.0) * vec3(0.20 * t3 * t3 * t3, 0.4 * t3 * t3, t3 * 0.7) * fade;
 
 				
 				s+=_VolSize;
